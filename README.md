@@ -1,12 +1,23 @@
 # Automated Detection of Dosing Errors in Clinical Trial Narratives
 
-[![Paper](https://img.shields.io/badge/Paper-LREC--COLING%202026-blue)](https://github.com/yourusername/ct-dosing-error-detection)
+[![Paper](https://img.shields.io/badge/Paper-LREC--COLING%202026-blue)](https://github.com/msmadi/Clinical-Trial-Dosing-Error-Benchmark-2026-CT-DEB-26-)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 Official implementation of **"Automated Detection of Dosing Errors in Clinical Trial Narratives: A Multi-Modal Feature Engineering Approach with LightGBM"** (LREC-COLING 2026).
 
 > **Abstract:** We present an automated system for detecting dosing errors in clinical trial narratives using gradient boosting with comprehensive multi-modal feature engineering. On the CT-DEB benchmark (35,794 narratives, 4.6% positive rate), we achieve **0.8725 test ROC-AUC** through 5-fold ensemble averaging with Optuna-optimized hyperparameters. Our approach combines 3,451 features spanning traditional NLP, dense semantic embeddings, domain-specific medical patterns, and transformer scores, demonstrating that sparse lexical features remain highly competitive with dense representations for specialized clinical text classification under severe class imbalance.
+
+---
+
+## 📂 Repository Organization
+
+> **Important**: All Python code is located in the **`code/`** directory. Navigate there before running any scripts:
+> ```bash
+> cd code
+> python extract_features.py --output_dir ../features
+> python comprehensive_pipeline_final.py --feature_dir ../features
+> ```
 
 ---
 
@@ -80,8 +91,8 @@ Removing **sentence embeddings** causes the largest performance degradation (**-
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/ct-dosing-error-detection.git
-cd ct-dosing-error-detection
+git clone https://github.com/msmadi/Clinical-Trial-Dosing-Error-Benchmark-2026-CT-DEB-26-.git
+cd Clinical-Trial-Dosing-Error-Benchmark-2026-CT-DEB-26-
 
 # Create virtual environment
 python -m venv venv
@@ -89,10 +100,9 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 
 # Install dependencies
 pip install -r requirements.txt
-
-# Download pre-trained models
-python scripts/download_models.py
 ```
+
+**Note**: All Python scripts are located in the `code/` directory.
 
 ### Dependencies
 
@@ -125,25 +135,36 @@ tqdm==4.66.1
 
 ## 🏃 Quick Start
 
-### 1. Train the Full Model
+## ⚠️ Important: Two-Step Workflow
+
+**All Python scripts are in the `code/` directory.** You must extract features before training.
+
+### Step 1: Extract Features (Required - Run Once)
 
 ```bash
-python train.py \
-    --data_dir data/ct-deb \
-    --feature_dir features \
-    --output_dir outputs \
-    --n_folds 5 \
-    --n_estimators 4000 \
-    --early_stopping_rounds 200
+cd code
+python extract_features.py --output_dir ../features
 ```
 
-### 2. Run Comprehensive Analysis Pipeline
+**Time**: ~15-30 minutes (CPU) or ~5-10 minutes (GPU)  
+**Output**: Creates `features/` directory with compressed NPZ files (~1.5 GB)
+
+This extracts all 3,451 features:
+- Medical pattern features (43)
+- Word TF-IDF (≈2,000)
+- Character n-grams (≈1,000)
+- Sentence embeddings (386)
+- Transformer scores (2)
+
+### Step 2: Run Comprehensive Analysis Pipeline
 
 ```bash
-python comprehensive_pipeline_final.py
+# From the code/ directory
+python comprehensive_pipeline_final.py --feature_dir ../features
 ```
 
 This will:
+- ✅ Load pre-extracted features
 - ✅ Train 5-fold ensemble
 - ✅ Compute out-of-fold predictions
 - ✅ Optimize classification threshold
@@ -163,21 +184,21 @@ This will:
 - `test_evaluation_summary.png` - 4-panel visualization
 - `ANALYSIS_REPORT.txt` - Human-readable summary
 
-### 3. Extract Features from Raw Text
+### Verify Feature Extraction
+
+After Step 1, verify features were created correctly:
 
 ```bash
-python extract_features.py \
-    --input data/ct-deb \
-    --output features \
-    --n_jobs -1
+python -c "
+from scipy import sparse
+import numpy as np
+X = sparse.load_npz('../features/X_train.npz')
+y = np.load('../features/y_train.npy')
+print(f'✓ Features: {X.shape}')  # Should be (29478, 3451)
+print(f'✓ Labels: {y.shape}')    # Should be (29478,)
+print(f'✓ Positive rate: {y.mean():.4f}')  # Should be ~0.046
+"
 ```
-
-This extracts all 3,451 features:
-- Medical pattern features (43)
-- Word TF-IDF (≈2,000)
-- Character n-grams (≈1,000)
-- Sentence embeddings (386)
-- Transformer scores (2)
 
 ### 4. Run Optuna Hyperparameter Optimization
 
@@ -239,14 +260,17 @@ ds_test = load_dataset("sssohrab/ct-dosing-errors-benchmark", split="test")
 ### Reproduce Exact Paper Results
 
 ```bash
+# Navigate to code directory
+cd code
+
 # Step 1: Extract features (if not already done)
-python extract_features.py --config configs/paper_config.yaml
+python extract_features.py --output_dir ../features
 
 # Step 2: Run full pipeline with exact hyperparameters
-python comprehensive_pipeline_final.py
+python comprehensive_pipeline_final.py --feature_dir ../features
 
-# Step 3: Verify results match paper
-python verify_results.py --results out/test_results.json
+# Step 3: Check results
+ls ../out/
 ```
 
 **Expected outputs:**
@@ -292,49 +316,47 @@ python ablation_study.py \
 ## 📁 Project Structure
 
 ```
-ct-dosing-error-detection/
+Clinical-Trial-Dosing-Error-Benchmark-2026-CT-DEB-26/
 │
-├── README.md                          # This file
-├── requirements.txt                   # Python dependencies
-├── LICENSE                            # MIT License
+├── README.md                              # This file
+├── LICENSE                                # MIT License
+├── CONTRIBUTING.md                        # Contribution guidelines
+├── CHANGELOG.md                           # Version history
+├── requirements.txt                       # Python dependencies
+├── setup.py                               # Package installation
 │
-├── configs/
-│   ├── paper_config.yaml              # Exact paper configuration
-│   └── optuna_config.yaml             # Optuna optimization settings
+├── code/                                  # 🔥 All Python scripts here
+│   ├── extract_features.py                # Feature extraction (run FIRST)
+│   ├── comprehensive_pipeline_final.py    # Training pipeline (run SECOND)
+│   ├── configs/
+│   │   └── paper_config.yaml              # Exact paper configuration
+│   └── IMPORTANT_FEATURE_EXTRACTION.md    # Feature extraction guide
 │
 ├── data/
-│   └── README.md                      # Dataset download instructions
+│   └── README.md                          # Dataset information
 │
-├── features/                          # Extracted features (NPZ format)
-│   ├── split_tr8000_word50_char3000_ng3-7_all-MiniLM-L6-v2_FULL_X_train.npz
-│   ├── split_tr8000_word50_char3000_ng3-7_all-MiniLM-L6-v2_FULL_X_val.npz
-│   └── split_tr8000_word50_char3000_ng3-7_all-MiniLM-L6-v2_FULL_X_test.npz
+├── features/                              # Created by extract_features.py
+│   ├── X_train.npz                        # Training features (created)
+│   ├── X_val.npz                          # Validation features (created)
+│   ├── X_test.npz                         # Test features (created)
+│   ├── y_train.npy                        # Training labels (created)
+│   ├── y_val.npy                          # Validation labels (created)
+│   ├── y_test.npy                         # Test labels (created)
+│   └── extractors.pkl                     # Fitted extractors (created)
 │
-├── models/
-│   ├── ensemble_model.pkl             # Trained 5-fold ensemble
-│   └── feature_selector.pkl           # Top-200 feature selector
-│
-├── notebooks/
-│   ├── 01_exploratory_analysis.ipynb  # Data exploration
-│   ├── 02_feature_engineering.ipynb   # Feature extraction walkthrough
-│   ├── 03_model_training.ipynb        # Training visualization
-│   └── 04_results_analysis.ipynb      # Results deep-dive
-│
-├── scripts/
-│   ├── download_models.py             # Download pre-trained models
-│   ├── verify_results.py              # Verify reproduction
-│   └── create_visualizations.py       # Generate all plots
-│
-├── src/
-│   ├── __init__.py
-│   ├── data/
-│   │   ├── __init__.py
-│   │   └── dataset.py                 # Dataset loading utilities
-│   ├── features/
-│   │   ├── __init__.py
-│   │   ├── medical_patterns.py        # Medical pattern extraction
-│   │   ├── tfidf_features.py          # TF-IDF features
-│   │   ├── char_ngrams.py             # Character n-grams
+└── out/                                   # Created by comprehensive_pipeline_final.py
+    ├── fold_results.csv                   # Per-fold performance
+    ├── feature_importance_complete.csv    # All features ranked
+    ├── ablation_results.csv               # Ablation study results
+    ├── test_results.json                  # Complete test metrics
+    └── *.png                              # Visualization plots
+```
+
+**Important Notes:**
+- 📂 All Python code is in the `code/` directory
+- ⚠️ Run scripts from the `code/` directory: `cd code`
+- 📁 The `features/` and `out/` directories are created automatically
+- 💾 Feature files (~1.5 GB) are NOT in the repository - run `extract_features.py` to generate them
 │   │   ├── sentence_embeddings.py     # Sentence transformer embeddings
 │   │   └── transformer_scores.py      # BiomedBERT & DeBERTa scores
 │   ├── models/
